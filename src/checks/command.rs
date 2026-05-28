@@ -24,6 +24,7 @@ impl CommandCheck {
     }
 
     /// Define a sugestao de correcao
+    #[allow(dead_code)]
     pub fn with_fix(mut self, suggestion: &str) -> Self {
         self.fix_suggestion = Some(suggestion.to_string());
         self
@@ -51,6 +52,35 @@ impl Check for CommandCheck {
     fn fix_suggestion(&self) -> Option<&str> {
         self.fix_suggestion.as_deref()
     }
+
+    async fn fix(&self, _ctx: &Context) -> Option<CheckResult> {
+        // Se existe sugestao de fix, tenta executar como comando shell
+        let suggestion = self.fix_suggestion.as_ref()?;
+
+        let status = tokio::process::Command::new("sh")
+            .arg("-c")
+            .arg(suggestion)
+            .status()
+            .await
+            .ok()?;
+
+        if status.success() {
+            Some(CheckResult::pass(
+                &self.name,
+                &format!("auto-fixed: ran '{}'", suggestion),
+            ))
+        } else {
+            Some(CheckResult::fail(
+                &self.name,
+                &format!(
+                    "auto-fix failed: '{}' exited with {:?}",
+                    suggestion,
+                    status.code()
+                ),
+                Some(suggestion),
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -61,7 +91,10 @@ mod tests {
     async fn test_command_found() {
         // `echo` existe em qualquer sistema Unix
         let check = CommandCheck::new("Echo", "echo");
-        let ctx = Context::new(std::env::current_dir().unwrap());
+        let ctx = Context::with_env(
+            std::env::current_dir().unwrap(),
+            std::collections::HashMap::new(),
+        );
         let result = check.run(&ctx).await;
 
         assert_eq!(result.name, "Echo");
@@ -72,13 +105,13 @@ mod tests {
     async fn test_command_not_found() {
         let check =
             CommandCheck::new("FakeTool", "ferpdeferpferp").with_fix("apt install faketool");
-        let ctx = Context::new(std::env::current_dir().unwrap());
+        let ctx = Context::with_env(
+            std::env::current_dir().unwrap(),
+            std::collections::HashMap::new(),
+        );
         let result = check.run(&ctx).await;
 
         assert_eq!(result.status, super::super::Status::Fail);
-        assert_eq!(
-            result.fix_suggestion,
-            Some("apt install faketool".to_string())
-        );
+        assert_eq!(result.suggestion, Some("apt install faketool".to_string()));
     }
 }

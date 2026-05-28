@@ -1,65 +1,47 @@
 // Modulo output: formatacao e display dos resultados no terminal
-// Usa colored para output colorido e respeita flags (--json, --quiet)
 
 use crate::checks::{CheckResult, Status};
-use colored::Colorize;
+
+// Cores ANSI para output colorido
+pub const GREEN: &str = "\x1b[32m";
+pub const RED: &str = "\x1b[31m";
+pub const YELLOW: &str = "\x1b[33m";
+pub const CYAN: &str = "\x1b[36m";
+pub const DIMMED: &str = "\x1b[2m";
+pub const RESET: &str = "\x1b[0m";
+
+/// Aplica cor a uma string
+pub fn color(text: &str, color_code: &str) -> String {
+    format!("{}{}{}", color_code, text, RESET)
+}
 
 /// Exibe os resultados dos checks no terminal
-pub fn display(results: &[CheckResult], quiet: bool) {
-    let mut passed = 0;
-    let mut failed = 0;
-    let mut warnings = 0;
-
+pub fn print_results(results: &[CheckResult]) {
+    println!();
     for result in results {
         match result.status {
             Status::Pass => {
-                passed += 1;
-                if !quiet {
-                    println!("  {}  {}", "✓".green().bold(), result.name.green());
-                    println!("    {}", result.message.dimmed());
-                }
+                println!("  {}  {}", color("✓", GREEN), color(&result.name, GREEN));
+                println!("    {}", color(&result.message, DIMMED));
             }
             Status::Fail => {
-                failed += 1;
-                println!("  {}  {}", "✗".red().bold(), result.name.red());
+                println!("  {}  {}", color("✗", RED), color(&result.name, RED));
                 println!("    {}", result.message);
-                if let Some(fix) = &result.fix_suggestion {
-                    println!("    {} {}", "└─ Fix:".yellow(), fix.yellow());
+                if let Some(fix) = &result.suggestion {
+                    println!("    {} {}", color("└─ Fix:", YELLOW), color(fix, YELLOW));
                 }
             }
             Status::Warning => {
-                warnings += 1;
-                println!("  {}  {}", "⚠".yellow().bold(), result.name.yellow());
+                println!("  {}  {}", color("⚠", YELLOW), color(&result.name, YELLOW));
                 println!("    {}", result.message);
-            }
-            Status::Skipped => {
-                if !quiet {
-                    println!("  {}  {}", "○".dimmed(), result.name.dimmed());
-                }
             }
         }
     }
-
-    // Linha separadora
     println!();
-    println!(
-        "  {} {} passed, {} failed, {} warnings",
-        "Summary:".bold(),
-        passed.to_string().green(),
-        failed.to_string().red(),
-        warnings.to_string().yellow(),
-    );
-
-    if failed > 0 {
-        println!(
-            "  {} Run 'checkup --fix' to auto-resolve what's possible",
-            "→".cyan()
-        );
-    }
 }
 
 /// Exibe os resultados em formato JSON
-pub fn display_json(results: &[CheckResult]) {
+pub fn format_json(results: &[CheckResult], fix_results: &[CheckResult]) -> String {
     let json_results: Vec<serde_json::Value> = results
         .iter()
         .map(|r| {
@@ -67,29 +49,29 @@ pub fn display_json(results: &[CheckResult]) {
                 "name": r.name,
                 "status": format!("{:?}", r.status),
                 "message": r.message,
-                "fix": r.fix_suggestion,
+                "suggestion": r.suggestion,
+                "duration_ms": r.duration_ms,
             })
         })
         .collect();
 
-    match serde_json::to_string_pretty(&json_results) {
-        Ok(json) => println!("{}", json),
-        Err(e) => eprintln!("Error serializing JSON: {}", e),
-    }
-}
+    let fix_json: Vec<serde_json::Value> = fix_results
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "name": r.name,
+                "status": format!("{:?}", r.status),
+                "message": r.message,
+                "suggestion": r.suggestion,
+                "duration_ms": r.duration_ms,
+            })
+        })
+        .collect();
 
-/// Exibe uma mensagem de erro formatada
-pub fn display_error(msg: &str) {
-    eprintln!("  {} {}", "Error:".red().bold(), msg);
-}
+    let combined = serde_json::json!({
+        "checks": json_results,
+        "fixes": fix_json,
+    });
 
-/// Exibe uma mensagem de boas-vindas
-pub fn display_header() {
-    println!();
-    println!(
-        "  {} {}",
-        "checkup".cyan().bold(),
-        "v0.1.0 — Environment Diagnostics".dimmed()
-    );
-    println!();
+    serde_json::to_string_pretty(&combined).unwrap_or_else(|_| "{}".to_string())
 }

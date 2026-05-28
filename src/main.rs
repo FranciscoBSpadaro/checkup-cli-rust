@@ -1,34 +1,37 @@
-// checkup - Environment diagnostics and auto-fix for development machines
-// Entry point: parse CLI args e direciona para init, check ou fix
-
-use clap::{Parser, Subcommand};
-use colored::Colorize;
-use std::path::PathBuf;
-
 mod checks;
 mod config;
 mod output;
 mod runner;
 
-/// CLI arguments do checkup
+use checks::Context;
+use clap::{Parser, Subcommand};
+use std::collections::HashMap;
+use std::path::PathBuf;
+
 #[derive(Parser)]
 #[command(
     name = "checkup",
-    version = "0.1.0",
-    about = "Environment diagnostics and auto-fix"
+    version,
+    about = "Verify your development environment",
+    long_about = "A fast CLI tool to verify your development environment.\n\
+                  Checks commands, services, ports, env vars, and more."
 )]
 struct Cli {
     /// Caminho para o arquivo de configuracao
-    #[arg(short, long, default_value = ".checkup.toml", global = true)]
+    #[arg(short, long, default_value = "checkup.toml")]
     config: PathBuf,
 
-    /// Suprime output de checks que passaram
-    #[arg(short, long, global = true)]
-    quiet: bool,
+    /// Caminho do projeto (default: diretorio atual)
+    #[arg(short, long, default_value = ".")]
+    project: PathBuf,
 
-    /// Output em formato JSON
-    #[arg(long, global = true)]
+    /// Saida em formato JSON
+    #[arg(long)]
     json: bool,
+
+    /// Modo silencioso (apenas codigo de saida)
+    #[arg(short, long)]
+    quiet: bool,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -36,130 +39,127 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Executa todos os checks e mostra o diagnostico
-    Check {
-        /// Tenta auto-corrigir problemas encontrados
-        #[arg(short, long)]
-        fix: bool,
+    /// Executa todos os checks
+    Check,
+    /// Tenta corrigir problemas encontrados
+    Fix,
+    /// Lista todos os checks configurados
+    List,
+    /// Gera shell completions
+    Completions {
+        /// Shell (bash, zsh, fish, powershell, elvish)
+        #[arg(value_enum)]
+        shell: Shell,
     },
+}
 
-    /// Cria um arquivo .checkup.toml com configuracao padrao
-    Init,
+#[derive(Clone, clap::ValueEnum)]
+enum Shell {
+    Bash,
+    Zsh,
+    Fish,
+    Powershell,
+    Elvish,
 }
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
-    match &cli.command {
-        Some(Commands::Init) => cmd_init(),
-        Some(Commands::Check { fix }) => {
-            cmd_check(&cli.config, cli.quiet, cli.json, *fix);
-        }
-        None => {
-            // Sem subcomando: executa check por padrao
-            cmd_check(&cli.config, cli.quiet, cli.json, false);
-        }
-    }
-}
-
-/// Comando init: cria .checkup.toml padrao
-fn cmd_init() {
-    let path = PathBuf::from(".checkup.toml");
-
-    if path.exists() {
-        output::display_error(".checkup.toml already exists. Remove it first to recreate.");
-        std::process::exit(1);
-    }
-
-    let default_content = r#"# checkup configuration
-# Defina abaixo as verificacoes para seu ambiente de desenvolvimento
-
-# [commands.node]
-# command = "node"
-# fix = "fnm install 20"
-
-# [versions.node]
-# version_flag = "--version"
-# expected = ">=20"
-# fix = "fnm install 20"
-
-# [postgres]
-# port = 5432
-
-# [redis]
-# port = 6379
-
-# [ports]
-# free = [3000, 8080]
-
-# [env]
-# required = ["DATABASE_URL", "JWT_SECRET"]
-
-# [envfile]
-# path = ".env"
-# required = ["DATABASE_URL", "JWT_SECRET"]
-"#;
-
-    match std::fs::write(&path, default_content) {
-        Ok(_) => {
-            println!("  {} Created {}", "✓".green().bold(), path.display());
-            println!(
-                "  {} Edit the file and run 'checkup' to diagnose",
-                "→".cyan()
-            );
-        }
-        Err(e) => {
-            output::display_error(&format!("could not create .checkup.toml: {}", e));
-            std::process::exit(1);
-        }
-    }
-}
-
-/// Comando check: carrega config, executa checks, mostra resultado
-fn cmd_check(config_path: &PathBuf, quiet: bool, json: bool, fix: bool) {
     // Carrega configuracao
-    let config = match config::CheckupConfig::load(config_path) {
+    let config = match config::load_config(&cli.config) {
         Ok(c) => c,
         Err(e) => {
-            output::display_error(&e.to_string());
-            eprintln!();
-            println!(
-                "  {} Run 'checkup init' to create a config file",
-                "→".cyan()
-            );
+            eprintln!("Error loading config: {}", e);
             std::process::exit(1);
         }
     };
 
-    let project_path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    // Resolve caminho do projeto
+    let project_path = std::fs::canonicalize(&cli.project).unwrap_or_else(|_| cli.project.clone());
 
-    // Executa checks em bloco async
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let results = runtime.block_on(runner::run_all(&config, &project_path));
-
-    // Mostra resultado
-    output::display_header();
-
-    if json {
-        output::display_json(&results);
-    } else {
-        output::display(&results, quiet);
-
-        if fix {
-            println!();
-            println!("  {} Auto-fix mode", "🔧".bold());
-            for result in &results {
-                if let Some(suggestion) = &result.fix_suggestion {
-                    println!("    {} {}: {}", "→".cyan(), result.name, suggestion);
+    // Carrega .env file se existir
+    let mut env_overrides = HashMap::new();
+    let env_file_path = project_path.join(".env");
+    if env_file_path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&env_file_path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, value)) = line.split_once('=') {
+                    env_overrides.insert(key.trim().to_string(), value.trim().to_string());
                 }
             }
         }
     }
 
-    // Exit code: 1 se houve falhas, 0 se tudo OK
-    let has_failures = results.iter().any(|r| r.status == checks::Status::Fail);
-    if has_failures {
-        std::process::exit(1);
+    let ctx = Context::with_env(project_path.clone(), env_overrides);
+
+    // Monta lista de checks
+    let checks = config::build_checks(&config, &project_path);
+
+    match cli.command {
+        Some(Commands::Fix) => {
+            // Primeiro roda os checks
+            let results = runner::run_all(&checks, &ctx).await;
+
+            // Depois tenta fix nos que falharam
+            let fix_results = runner::fix_all(&checks, &results, &ctx).await;
+
+            if cli.json {
+                println!("{}", output::format_json(&results, &fix_results));
+            } else if !cli.quiet {
+                output::print_results(&results);
+                if !fix_results.is_empty() {
+                    println!("\n{}", output::color("Auto-fix results:", output::CYAN));
+                    output::print_results(&fix_results);
+                }
+            }
+
+            let has_failures = results.iter().any(|r| r.status == checks::Status::Fail);
+            std::process::exit(if has_failures { 1 } else { 0 });
+        }
+        Some(Commands::List) => {
+            for check in &checks {
+                println!("  {}", check.name());
+            }
+        }
+        Some(Commands::Completions { shell }) => {
+            let shell = match shell {
+                Shell::Bash => clap_complete::Shell::Bash,
+                Shell::Zsh => clap_complete::Shell::Zsh,
+                Shell::Fish => clap_complete::Shell::Fish,
+                Shell::Powershell => clap_complete::Shell::PowerShell,
+                Shell::Elvish => clap_complete::Shell::Elvish,
+            };
+            clap_complete::generate(
+                shell,
+                &mut <Cli as clap::CommandFactory>::command(),
+                "checkup",
+                &mut std::io::stdout(),
+            );
+        }
+        Some(Commands::Check) | None => {
+            let results = runner::run_all(&checks, &ctx).await;
+
+            if cli.json {
+                println!("{}", output::format_json(&results, &[]));
+            } else if !cli.quiet {
+                output::print_results(&results);
+            }
+
+            let (pass, fail, _warn) = runner::summarize(&results);
+            if !cli.quiet {
+                println!(
+                    "\n{} passed, {} failed",
+                    output::color(&pass.to_string(), output::GREEN),
+                    output::color(&fail.to_string(), output::RED),
+                );
+            }
+
+            std::process::exit(if fail > 0 { 1 } else { 0 });
+        }
     }
 }

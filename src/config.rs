@@ -1,9 +1,15 @@
 // Modulo de configuracao: parsing do .checkup.toml
 // Usa serde para desserializacao e thiserror para erros tipados
 
+use crate::checks::{
+    CommandCheck, EnvFileCheck, EnvVarCheck, PortCheck, ServiceCheck, VersionCheck,
+};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use crate::checks::Check;
 
 /// Erros que podem ocorrer ao carregar a configuracao
 #[derive(Debug, thiserror::Error)]
@@ -52,6 +58,7 @@ pub struct CommandConfig {
     /// Comando a ser buscado no PATH
     pub command: String,
     /// Opcional: sugestao de instalacao
+    #[allow(dead_code)]
     pub fix: Option<String>,
 }
 
@@ -64,6 +71,7 @@ pub struct VersionConfig {
     /// Versao esperada no formato semver constraint (ex: ">=20")
     pub expected: String,
     /// Opcional: sugestao de correcao
+    #[allow(dead_code)]
     pub fix: Option<String>,
 }
 
@@ -82,7 +90,7 @@ pub struct ServiceConfig {
 }
 
 fn default_host() -> String {
-    "localhost".to_string()
+    "127.0.0.1".to_string()
 }
 
 /// Configuracao de portas livres
@@ -109,7 +117,7 @@ pub struct EnvFileConfig {
     pub path: String,
 
     /// Lista de chaves que devem existir no .env
-    #[serde(default)]
+    #[serde(default, alias = "required_keys")]
     pub required: Vec<String>,
 }
 
@@ -132,11 +140,13 @@ impl CheckupConfig {
     }
 
     /// Carrega a configuracao do diretorio do projeto
+    #[allow(dead_code)]
     pub fn load_from_dir<P: AsRef<Path>>(dir: P) -> Result<Self, ConfigError> {
         Self::load(dir.as_ref().join(".checkup.toml"))
     }
 
     /// Cria uma configuracao padrao (para `checkup init`)
+    #[allow(dead_code)]
     pub fn default_config() -> Self {
         let mut commands = HashMap::new();
         commands.insert(
@@ -224,4 +234,44 @@ required = ["DATABASE_URL"]
         let result = CheckupConfig::load("/caminho/inexistente/.checkup.toml");
         assert!(matches!(result, Err(ConfigError::NotFound(_))));
     }
+}
+
+/// Carrega configuracao a partir de um caminho
+pub fn load_config(path: &Path) -> Result<CheckupConfig, ConfigError> {
+    CheckupConfig::load(path)
+}
+
+/// Constroi a lista de checks a partir da configuracao
+pub fn build_checks(config: &CheckupConfig, _project_path: &Path) -> Vec<Arc<dyn Check>> {
+    let mut checks: Vec<Arc<dyn Check>> = Vec::new();
+
+    // Checks de comando
+    for (name, cmd_config) in &config.commands {
+        checks.push(Arc::new(CommandCheck::new(name, &cmd_config.command)));
+    }
+
+    // Checks de versao — a key e' o nome da ferramenta e o comando
+    for (name, ver_config) in &config.versions {
+        checks.push(Arc::new(VersionCheck::new(name, name, ver_config)));
+    }
+
+    // Checks de servico
+    for (name, svc_config) in &config.services {
+        checks.push(Arc::new(ServiceCheck::new(name, svc_config)));
+    }
+
+    // Checks de porta livre
+    for port in &config.ports.free {
+        checks.push(Arc::new(PortCheck::new(*port)));
+    }
+
+    // Check de variaveis de ambiente
+    if !config.env.required.is_empty() {
+        checks.push(Arc::new(EnvVarCheck::new("Environment", &config.env)));
+    }
+
+    // Check de arquivo .env
+    checks.push(Arc::new(EnvFileCheck::new(&config.envfile)));
+
+    checks
 }

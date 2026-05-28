@@ -30,6 +30,102 @@ impl Check for EnvFileCheck {
         ".env"
     }
 
+    fn fix_suggestion(&self) -> Option<&str> {
+        Some("create .env from .env.example or add missing keys")
+    }
+
+    async fn fix(&self, ctx: &Context) -> Option<CheckResult> {
+        let full_path = ctx.project_path.join(&self.path);
+
+        // Se o .env nao existe, tenta copiar de .env.example
+        if !full_path.exists() {
+            let example_path = ctx.project_path.join(".env.example");
+            if example_path.exists() {
+                match fs::copy(&example_path, &full_path) {
+                    Ok(_) => {
+                        return Some(CheckResult::pass(".env", "created .env from .env.example"));
+                    }
+                    Err(e) => {
+                        return Some(CheckResult::fail(
+                            ".env",
+                            &format!("could not copy .env.example: {}", e),
+                            Some("copy .env.example to .env manually"),
+                        ));
+                    }
+                }
+            }
+
+            // Sem .env.example, cria o arquivo com stubs
+            let stub = self
+                .required_keys
+                .iter()
+                .map(|k| format!("{}=your_{}_here", k, k.to_lowercase()))
+                .collect::<Vec<_>>()
+                .join("\n")
+                + "\n";
+
+            match fs::write(&full_path, &stub) {
+                Ok(_) => {
+                    return Some(CheckResult::pass(
+                        ".env",
+                        &format!("created {} with stub values", self.path.display()),
+                    ));
+                }
+                Err(e) => {
+                    return Some(CheckResult::fail(
+                        ".env",
+                        &format!("could not create .env: {}", e),
+                        Some("create .env manually"),
+                    ));
+                }
+            }
+        }
+
+        // Arquivo existe mas faltam chaves — append them
+        let content = fs::read_to_string(&full_path).ok()?;
+        let found_keys: Vec<&str> = content
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    return None;
+                }
+                line.split('=').next().map(|k| k.trim())
+            })
+            .collect();
+
+        let missing: Vec<&str> = self
+            .required_keys
+            .iter()
+            .filter(|key| !found_keys.contains(&key.as_str()))
+            .map(|s| s.as_str())
+            .collect();
+
+        if missing.is_empty() {
+            return Some(CheckResult::pass(".env", "all required keys present"));
+        }
+
+        let mut new_content = content;
+        if !new_content.ends_with('\n') {
+            new_content.push('\n');
+        }
+        for key in &missing {
+            new_content.push_str(&format!("{}=your_{}_here\n", key, key.to_lowercase()));
+        }
+
+        match fs::write(&full_path, &new_content) {
+            Ok(_) => Some(CheckResult::pass(
+                ".env",
+                &format!("added missing keys: {}", missing.join(", ")),
+            )),
+            Err(e) => Some(CheckResult::fail(
+                ".env",
+                &format!("could not update .env: {}", e),
+                Some("edit .env manually"),
+            )),
+        }
+    }
+
     async fn run(&self, ctx: &Context) -> CheckResult {
         let full_path = ctx.project_path.join(&self.path);
 

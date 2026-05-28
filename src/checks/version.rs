@@ -51,20 +51,20 @@ impl VersionCheck {
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
 
-        if constraint.starts_with(">=") {
-            let expected: u32 = constraint[2..].trim().parse().unwrap_or(0);
+        if let Some(rest) = constraint.strip_prefix(">=") {
+            let expected: u32 = rest.trim().parse().unwrap_or(0);
             major >= expected
-        } else if constraint.starts_with(">") {
-            let expected: u32 = constraint[1..].trim().parse().unwrap_or(0);
+        } else if let Some(rest) = constraint.strip_prefix('>') {
+            let expected: u32 = rest.trim().parse().unwrap_or(0);
             major > expected
-        } else if constraint.starts_with("<=") {
-            let expected: u32 = constraint[2..].trim().parse().unwrap_or(0);
+        } else if let Some(rest) = constraint.strip_prefix("<=") {
+            let expected: u32 = rest.trim().parse().unwrap_or(0);
             major <= expected
-        } else if constraint.starts_with("<") {
-            let expected: u32 = constraint[1..].trim().parse().unwrap_or(0);
+        } else if let Some(rest) = constraint.strip_prefix('<') {
+            let expected: u32 = rest.trim().parse().unwrap_or(0);
             major < expected
-        } else if constraint.starts_with("==") {
-            let expected: u32 = constraint[2..].trim().parse().unwrap_or(0);
+        } else if let Some(rest) = constraint.strip_prefix("==") {
+            let expected: u32 = rest.trim().parse().unwrap_or(0);
             major == expected
         } else {
             // Sem constraint reconhecido, compara igualdade
@@ -74,10 +74,75 @@ impl VersionCheck {
     }
 }
 
+impl VersionCheck {
+    /// Detecta gerenciador de versao disponivel no PATH
+    fn detect_version_manager() -> Option<String> {
+        for manager in &["fnm", "mise", "asdf", "nvm"] {
+            if which::which(manager).is_ok() {
+                return Some(manager.to_string());
+            }
+        }
+        None
+    }
+}
+
 #[async_trait::async_trait]
 impl Check for VersionCheck {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    fn fix_suggestion(&self) -> Option<&str> {
+        self.fix_suggestion.as_deref()
+    }
+
+    async fn fix(&self, _ctx: &Context) -> Option<CheckResult> {
+        // Tenta gerenciadores de versao: fnm, nvm, asdf, mise
+        if let Some(manager) = VersionCheck::detect_version_manager() {
+            // Extrai major version da constraint (ex: ">=20" -> "20")
+            let version = self
+                .expected
+                .trim_start_matches(|c: char| !c.is_ascii_digit());
+            if !version.is_empty() {
+                let use_cmd = format!("{} use {}", manager, version);
+                let status = tokio::process::Command::new("sh")
+                    .arg("-c")
+                    .arg(&use_cmd)
+                    .status()
+                    .await
+                    .ok()?;
+
+                if status.success() {
+                    return Some(CheckResult::pass(
+                        &self.name,
+                        &format!("switched to version {} via {}", version, manager),
+                    ));
+                }
+            }
+        }
+
+        // Fallback: usa a sugestao de fix do config
+        if let Some(suggestion) = &self.fix_suggestion {
+            let status = tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg(suggestion)
+                .status()
+                .await
+                .ok()?;
+
+            if status.success() {
+                return Some(CheckResult::pass(
+                    &self.name,
+                    &format!("auto-fixed: ran '{}'", suggestion),
+                ));
+            }
+        }
+
+        Some(CheckResult::fail(
+            &self.name,
+            "auto-fix: could not upgrade version automatically",
+            self.fix_suggestion.as_deref(),
+        ))
     }
 
     async fn run(&self, _ctx: &Context) -> CheckResult {
@@ -129,10 +194,6 @@ impl Check for VersionCheck {
                 self.fix_suggestion.as_deref(),
             )
         }
-    }
-
-    fn fix_suggestion(&self) -> Option<&str> {
-        self.fix_suggestion.as_deref()
     }
 }
 

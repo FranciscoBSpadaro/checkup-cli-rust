@@ -1,49 +1,30 @@
-// Modulo checks: define a trait Check (plugin system)
-// Cada verificacao implementa esta trait
+// Trait `Check` e estruturas compartilhadas (Context, Status, CheckResult)
 
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
-
-// Submodulos de checks
-pub mod command;
-pub mod envfile;
-pub mod envvar;
-pub mod port;
-pub mod service;
-pub mod version;
-
-// Re-export das structs principais
-pub use command::CommandCheck;
-pub use envfile::EnvFileCheck;
-pub use envvar::EnvVarCheck;
-pub use port::PortCheck;
-pub use service::ServiceCheck;
-pub use version::VersionCheck;
 
 /// Status de resultado de um check
 #[derive(Debug, Clone, PartialEq)]
 pub enum Status {
-    /// Check passou sem problemas
     Pass,
-    /// Check falhou — algo esta errado no ambiente
     Fail,
-    /// Check passou com alerta — atencao necessaria
     Warning,
-    /// Check foi pulado — nao aplicavel ao ambiente atual
-    Skipped,
 }
 
 /// Resultado da execucao de um check
 #[derive(Debug, Clone)]
 pub struct CheckResult {
-    /// Nome legivel do check (ex: "Node.js")
+    /// Nome do check
     pub name: String,
-    /// Status do resultado
+    /// Status (Pass, Fail, Warning)
     pub status: Status,
-    /// Mensagem descritiva (ex: "found 18.2, expected >= 20")
+    /// mensagem legivel
     pub message: String,
-    /// Sugestao de comando para correcao manual
-    pub fix_suggestion: Option<String>,
+    /// Sugestao de correcao (opcional)
+    pub suggestion: Option<String>,
+    /// Duracao da verificacao em ms
+    pub duration_ms: u128,
 }
 
 impl CheckResult {
@@ -53,66 +34,87 @@ impl CheckResult {
             name: name.to_string(),
             status: Status::Pass,
             message: message.to_string(),
-            fix_suggestion: None,
+            suggestion: None,
+            duration_ms: 0,
         }
     }
 
-    /// Cria um resultado de falha com sugestao de correcao
-    pub fn fail(name: &str, message: &str, fix: Option<&str>) -> Self {
+    /// Cria um resultado de falha
+    pub fn fail(name: &str, message: &str, suggestion: Option<&str>) -> Self {
         Self {
             name: name.to_string(),
             status: Status::Fail,
             message: message.to_string(),
-            fix_suggestion: fix.map(|s| s.to_string()),
+            suggestion: suggestion.map(String::from),
+            duration_ms: 0,
         }
     }
 
-    /// Cria um resultado de warning
-    pub fn warn(name: &str, message: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            status: Status::Warning,
-            message: message.to_string(),
-            fix_suggestion: None,
-        }
+    /// Atribui duracao ao resultado
+    #[allow(dead_code)]
+    pub fn with_duration(mut self, ms: u128) -> Self {
+        self.duration_ms = ms;
+        self
     }
 }
 
-/// Contexto compartilhado entre todos os checks
-#[derive(Debug, Clone)]
+/// Contexto injetado em cada check
 pub struct Context {
-    /// Caminho raiz do projeto (onde esta o .checkup.toml)
+    /// Caminho do projeto (root)
     pub project_path: PathBuf,
-    /// Variaveis de ambiente atuais
+    /// Variaveis de ambiente (override para testes)
     pub env: HashMap<String, String>,
 }
 
 impl Context {
-    /// Cria um novo contexto a partir do caminho do projeto
+    /// Cria um novo contexto de verificacao vazio
+    #[allow(dead_code)]
     pub fn new(project_path: PathBuf) -> Self {
-        let env: HashMap<String, String> = std::env::vars().collect();
+        Self {
+            project_path,
+            env: HashMap::new(),
+        }
+    }
+
+    /// Cria contexto com overrides de ambiente (para testes)
+    pub fn with_env(project_path: PathBuf, env: HashMap<String, String>) -> Self {
         Self { project_path, env }
     }
 }
 
-/// Trait que cada check deve implementar.
-/// A trait e Send + Sync para permitir uso em paralelo com tokio.
-#[async_trait::async_trait]
+/// Trait que todos os checks devem implementar
+#[async_trait]
+#[allow(dead_code)]
 pub trait Check: Send + Sync {
-    /// Nome legivel do check para exibicao no output
+    /// Nome legivel do check
     fn name(&self) -> &str;
 
-    /// Executa o check e retorna o resultado
-    async fn run(&self, ctx: &Context) -> CheckResult;
+    /// retorna sugestao estatica de fix, se houver
+    fn fix_suggestion(&self) -> Option<&str> {
+        None
+    }
 
-    /// Tenta corrigir automaticamente o problema encontrado.
-    /// Retorna None se o check nao suporta auto-fix.
+    /// auto-fix: tenta corrigir o problema identificado
+    /// retorna None se nao aplicavel ou None para checar o resultado
     async fn fix(&self, _ctx: &Context) -> Option<CheckResult> {
         None
     }
 
-    /// Comando sugerido para correcao manual quando auto-fix nao for possivel
-    fn fix_suggestion(&self) -> Option<&str> {
-        None
-    }
+    /// Executa o check
+    async fn run(&self, ctx: &Context) -> CheckResult;
 }
+
+// Re-export dos checks individuais
+pub mod command;
+pub mod envfile;
+pub mod envvar;
+pub mod port;
+pub mod service;
+pub mod version;
+
+pub use command::CommandCheck;
+pub use envfile::EnvFileCheck;
+pub use envvar::EnvVarCheck;
+pub use port::PortCheck;
+pub use service::ServiceCheck;
+pub use version::VersionCheck;

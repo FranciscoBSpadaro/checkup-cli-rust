@@ -9,20 +9,23 @@ repository = "https://github.com/FranciscoBSpadaro/checkup-cli-rust"
 keywords = ["cli", "devtools", "environment", "diagnostics"]
 categories = ["command-line-utilities", "development-tools"]
 
+[lib]
+name = "checkup"
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 toml = "0.8"
 colored = "2"
 thiserror = "1"
 anyhow = "1"
-which = "6"
+which = "7"
 async-trait = "0.1"
-indicatif = "0.17"
-serde_json = "1"
 futures = "0.3"
 
 [dev-dependencies]
 tempfile = "3"
-serial_test = "3"

@@ -1,0 +1,52 @@
+# checkup.toml — Configuracao de diagnostico do ambiente
+# Place this file in your project root
+
+[commands]
+# Verifica se comandos estao disponiveis no PATH
+# [commands.<name>] — name sera usado como label e como comando
+
+[commands.git]
+command = "git"
+fix = "sudo apt install git"
+
+[commands.rustc]
+command = "rustc"
+fix = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+
+[commands.cargo]
+command = "cargo"
+
+# Verifica versoes minimas
+[rust]
+version = ">=1.75"
+fix = "rustup update"
+
+[node]
+version = ">=20"
+fix = "nvm install 20"
+
+# Verifica servicos (conecta na porta TCP)
+[postgres]
+port = 5432
+host = "127.0.0.1"
+
+[redis]
+port = 6379
+host = "127.0.0.1"
+
+[mongo]
+port = 27017
+host = "127.0.0.1"
+
+# Portas que devem estar livres
+[ports]
+free = [3000, 5432, 6379, 8080]
+
+# Variaveis de ambiente obrigatorias
+[env]
+required = ["HOME", "PATH"]
+
+# Arquivo .env
+[envfile]
+path = ".env"
+required_keys = ["DATABASE_URL", "API_KEY"]
