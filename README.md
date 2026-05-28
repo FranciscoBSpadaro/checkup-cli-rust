@@ -4,6 +4,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml/badge.svg)](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml)
 
 Stop wasting hours debugging your dev machine. One command tells you **exactly**
 what's wrong — and how to fix it.
@@ -16,7 +17,7 @@ $ checkup
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  checkup v0.1.0 — Environment Diagnostics            │
+│  checkup v0.1.1 — Environment Diagnostics            │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │  ✓ Node.js          v20.10.0 (>= 20)                 │
@@ -43,6 +44,7 @@ $ checkup
 - [Checks](#checks)
 - [Auto-Fix](#auto-fix)
 - [Roadmap](#roadmap)
+- [CI/CD](#cicd)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -76,9 +78,21 @@ right next to it.
 ### From source
 
 ```bash
-git clone https://github.com/seuuser/checkup.git
+git clone https://github.com/FranciscoBSpadaro/checkup-cli-rust
 cd checkup
 cargo install --path .
+```
+
+### Quick install script
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
 ```
 
 ### Platform Support
@@ -99,9 +113,9 @@ cargo install --path .
 checkup init
 ```
 
-This creates a `.checkup.toml` file with sensible defaults.
+This creates a `checkup.toml` file with sensible defaults.
 
-**Step 2:** Edit `.checkup.toml` for your project:
+**Step 2:** Edit `checkup.toml` for your project:
 
 ```toml
 [commands.node]
@@ -143,7 +157,7 @@ checkup --fix
 
 ## Configuration
 
-The `.checkup.toml` file defines what to check:
+The `checkup.toml` file defines what to check:
 
 ```toml
 # Commands that must exist in PATH
@@ -182,12 +196,12 @@ required = ["DATABASE_URL", "JWT_SECRET"]
 
 ```
 checkup                    Run all checks (default)
-checkup init               Create a default .checkup.toml
+checkup init               Create a default checkup.toml
 checkup check              Run all checks
 checkup check --fix        Show fix suggestions for failures
 
 Options:
-  -c, --config <FILE>      Path to config file [default: .checkup.toml]
+  -c, --config <FILE>      Path to config file [default: checkup.toml]
   -f, --fix                Show fix suggestions
   -j, --json               Output results as JSON
   -q, --quiet              Only show failures
@@ -239,41 +253,49 @@ When auto-fix isn't possible, the tool provides the exact command to run.
 
 ## Roadmap
 
-- [x] Project structure and architecture
-- [x] Core: trait `Check` + plugin system
-- [x] Checks: command, version, service, port, envfile, envvar
-- [x] Parallel execution with async (futures::join_all)
-- [x] `.checkup.toml` config parser (serde)
-- [x] Auto-fix suggestions
-- [x] JSON output mode (`--json`)
-- [x] CLI with clap (init, check, --fix, --quiet)
-- [x] 18 unit tests passing
-- [ ] Shell completions (bash, zsh, fish)
-- [ ] Windows support
+- ✅ Project structure and architecture
+- ✅ Core: trait `Check` + plugin system
+- ✅ Checks: command, version, service, port, envfile, envvar
+- ✅ Parallel execution with async (`futures::join_all`)
+- ✅ `checkup.toml` config parser (serde)
+- ✅ Auto-fix suggestions
+- ✅ JSON output mode (`--json`)
+- ✅ CLI with clap (`init`, `check`, `--fix`, `--quiet`)
+- ✅ Shell completions (bash, zsh, fish, powershell, elvish)
+- ✅ 18 unit tests passing
+- 🚧 Windows support
+
+---
+
+## CI/CD
+
+This project uses **GitHub Actions** for continuous integration and delivery. Every push and pull request triggers the CI pipeline automatically.
+
+### Pipeline Stages
+
+| Stage       | Description                                     |
+| ----------- | ----------------------------------------------- |
+| **Check**   | `cargo check` — fast compilation verification   |
+| **Format**  | `cargo fmt` — ensures consistent code style     |
+| **Lint**    | `cargo clippy` — catches common mistakes        |
+| **Test**    | `cargo test` — runs all unit tests (18 passing) |
+| **Build**   | `cargo build --release` — production artifact   |
+
+### Supported Platforms (CI)
+
+| Platform | Status       |
+| -------- | ------------ |
+| Linux    | ✅ Tested    |
+| macOS    | ✅ Tested    |
+| Windows  | ✅ Tested    |
+
+The CI pipeline runs on **all three platforms** on every push, ensuring cross-platform compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for details.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-```bash
-# Fork and clone
-git clone https://github.com/youruser/checkup.git
-cd checkup
-
-# Run tests
-cargo test
-
-# Run lints
-cargo clippy
-
-# Format code
-cargo fmt
-
-# Build
-cargo build --release
-```
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on how to submit issues, propose features, and open pull requests.
 
 ---
 

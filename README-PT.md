@@ -4,6 +4,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml/badge.svg)](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml)
 
 Pare de perder horas debugando sua máquina de dev. Um comando te diz
 **exatamente** o que está errado — e como corrigir.
@@ -16,7 +17,7 @@ $ checkup
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  checkup v0.1.0 — Diagnóstico de Ambiente            │
+│  checkup v0.1.1 — Diagnóstico de Ambiente            │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │  ✓ Node.js          v20.10.0 (>= 20)                 │
@@ -43,6 +44,7 @@ $ checkup
 - [Checks](#checks)
 - [Auto-Fix](#auto-fix)
 - [Roadmap](#roadmap)
+- [CI/CD](#cicd)
 - [Contribuindo](#contribuindo)
 - [Licença](#licença)
 
@@ -76,15 +78,27 @@ logo ao lado.
 ### Via código fonte
 
 ```bash
-git clone https://github.com/seuuser/checkup.git
+git clone https://github.com/FranciscoBSpadaro/checkup-cli-rust
 cd checkup
 cargo install --path .
 ```
 
+### Script de instalação rápida
+
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
+```
+
 ### Suporte por Plataforma
 
-| Plataforma | Status |
-|------------|--------|
+| Plataforma | Status       |
+| ---------- | ------------ |
 | Linux      | ✅ Suportado |
 | macOS      | ✅ Suportado |
 | Windows    | 🚧 Planejado |
@@ -99,9 +113,9 @@ cargo install --path .
 checkup init
 ```
 
-Isso cria um arquivo `.checkup.toml` com padrões sensatos.
+Isso cria um arquivo `checkup.toml` com padrões sensatos.
 
-**Passo 2:** Edite `.checkup.toml` para seu projeto:
+**Passo 2:** Edite `checkup.toml` para seu projeto:
 
 ```toml
 [commands.node]
@@ -143,7 +157,7 @@ checkup --fix
 
 ## Configuração
 
-O arquivo `.checkup.toml` define o que verificar:
+O arquivo `checkup.toml` define o que verificar:
 
 ```toml
 # Comandos que devem existir no PATH
@@ -184,11 +198,11 @@ required = ["DATABASE_URL", "JWT_SECRET"]
 checkup [OPTIONS]
 
 Opções:
-  -c, --config <FILE>   Caminho para arquivo de config [padrão: .checkup.toml]
+  -c, --config <FILE>   Caminho para arquivo de config [padrão: checkup.toml]
   -f, --fix             Tenta auto-corrigir problemas
   -j, --json            Output em formato JSON
   -q, --quiet           Mostra apenas falhas
-      --init            Cria .checkup.toml padrão
+      --init            Cria checkup.toml padrão
   -h, --help            Mostra ajuda
   -V, --version         Mostra versão
 ```
@@ -199,14 +213,14 @@ Opções:
 
 Cada check verifica um aspecto do ambiente:
 
-| Check | O que faz |
-|-------|-----------|
-| `command` | Verifica se comando existe no PATH |
+| Check     | O que faz                                         |
+| --------- | ------------------------------------------------- |
+| `command` | Verifica se comando existe no PATH                |
 | `version` | Verifica versão da ferramenta (comparação semver) |
 | `service` | Verifica se serviço está rodando (TCP port check) |
-| `port` | Verifica se porta está livre para uso |
-| `envfile` | O `.env` existe e tem as chaves necessárias? |
-| `envvar` | Variáveis de ambiente estão definidas? |
+| `port`    | Verifica se porta está livre para uso             |
+| `envfile` | O `.env` existe e tem as chaves necessárias?      |
+| `envvar`  | Variáveis de ambiente estão definidas?            |
 
 Checks rodam **em paralelo** usando I/O async — tipicamente completando em menos de 1 segundo.
 
@@ -237,41 +251,49 @@ Quando auto-fix não é possível, a ferramenta fornece o comando exato para rod
 
 ## Roadmap
 
-- [x] Estrutura do projeto e arquitetura
-- [x] Core: trait `Check` + plugin system
-- [x] Checks: command, version, service, port, envfile, envvar
-- [x] Execução paralela com async (futures::join_all)
-- [x] Parser de config `.checkup.toml` (serde)
-- [x] Sugestões de auto-fix
-- [x] Modo output JSON (`--json`)
-- [x] CLI com clap (init, check, --fix, --quiet)
-- [x] 18 testes unitários passando
-- [ ] Shell completions (bash, zsh, fish)
-- [ ] Suporte a Windows
+- ✅ Estrutura do projeto e arquitetura
+- ✅ Core: trait `Check` + plugin system
+- ✅ Checks: command, version, service, port, envfile, envvar
+- ✅ Execução paralela com async (`futures::join_all`)
+- ✅ Parser de config `checkup.toml` (serde)
+- ✅ Sugestões de auto-fix
+- ✅ Modo output JSON (`--json`)
+- ✅ CLI com clap (`init`, `check`, `--fix`, `--quiet`)
+- ✅ Shell completions (bash, zsh, fish, powershell, elvish)
+- ✅ 18 testes unitários passando
+- 🚧 Suporte a Windows
+
+---
+
+## CI/CD
+
+Este projeto usa **GitHub Actions** para integração e entrega contínua. Toda push e pull request aciona o pipeline de CI automaticamente.
+
+### Estágios do Pipeline
+
+| Estágio    | Descrição                                                      |
+| ---------- | -------------------------------------------------------------- |
+| **Check**  | `cargo check` — verificação rápida de compilação               |
+| **Format** | `cargo fmt` — garante estilo consistente de código             |
+| **Lint**   | `cargo clippy` — captura erros comuns                          |
+| **Test**   | `cargo test` — executa todos os testes unitários (18 passando) |
+| **Build**  | `cargo build --release` — artefato de produção                 |
+
+### Plataformas Suportadas (CI)
+
+| Plataforma | Status     |
+| ---------- | ---------- |
+| Linux      | ✅ Testado |
+| macOS      | ✅ Testado |
+| Windows    | ✅ Testado |
+
+O pipeline de CI roda em **todas as três plataformas** em cada push, garantindo compatibilidade multi-plataforma. Veja [`.github/workflows/ci.yml`](.github/workflows/ci.yml) para detalhes.
 
 ---
 
 ## Contribuindo
 
-Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md) para diretrizes.
-
-```bash
-# Fork e clone
-git clone https://github.com/youruser/checkup.git
-cd checkup
-
-# Rodar testes
-cargo test
-
-# Rodar linter
-cargo clippy
-
-# Formatar código
-cargo fmt
-
-# Build
-cargo build --release
-```
+Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md) para diretrizes detalhadas sobre como reportar problemas, propor funcionalidades e abrir pull requests.
 
 ---
 
