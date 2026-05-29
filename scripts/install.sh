@@ -204,7 +204,7 @@ echo ""
 echo "  Quick start:"
 echo "    checkup init          # Create checkup.toml config"
 echo "    checkup check         # Run diagnostics"
-echo "    checkup check --fix   # Auto-fix issues"
+echo "    checkup fix           # Auto-fix issues"
 echo "    checkup --help        # Show all options"
 echo ""
 

@@ -113,7 +113,7 @@ Write-Header "Building checkup"
 if (Test-Path $SourceDir) {
     Write-Info "Existing source found at ${SourceDir}, updating..."
     Push-Location $SourceDir
-    git pull origin main 2>&1 | Out-String | ForEach-Object { Write-Host "  $_" }
+    git pull origin master 2>&1 | Out-String | ForEach-Object { Write-Host "  $_" }
     Pop-Location
 } else {
     Write-Info "Cloning repository..."
@@ -192,7 +192,7 @@ Write-Host ""
 Write-Host "  Quick start:"
 Write-Host "    checkup init          # Create checkup.toml config"
 Write-Host "    checkup check         # Run diagnostics"
-Write-Host "    checkup check --fix   # Auto-fix issues"
+Write-Host "    checkup fix           # Auto-fix issues"
 Write-Host "    checkup --help        # Show all options"
 Write-Host ""
 
