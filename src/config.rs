@@ -25,35 +25,35 @@ pub enum ConfigError {
 }
 
 /// Configuracao completa do .checkup.toml
-#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct CheckupConfig {
     /// Checks de comando (verifica se comando existe no PATH)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub commands: HashMap<String, CommandConfig>,
 
     /// Checks de versao (verifica versao de ferramentas)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub versions: HashMap<String, VersionConfig>,
 
     /// Checks de servico (verifica se porta TCP esta respondendo)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub services: HashMap<String, ServiceConfig>,
 
     /// Portas que devem estar livres
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "PortsConfig::is_empty")]
     pub ports: PortsConfig,
 
     /// Variaveis de ambiente requeridas
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "EnvConfig::is_empty")]
     pub env: EnvConfig,
 
     /// Arquivo .env
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "EnvFileConfig::is_empty")]
     pub envfile: EnvFileConfig,
 }
 
 /// Configuracao de um check de comando
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CommandConfig {
     /// Comando a ser buscado no PATH
     pub command: String,
@@ -63,7 +63,7 @@ pub struct CommandConfig {
 }
 
 /// Configuracao de um check de versao
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct VersionConfig {
     /// Comando para obter a versao (ex: "--version")
     #[serde(default = "default_version_flag")]
@@ -80,7 +80,7 @@ fn default_version_flag() -> String {
 }
 
 /// Configuracao de um check de servico (TCP port)
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ServiceConfig {
     /// Porta TCP que deve estar respondendo
     pub port: u16,
@@ -94,23 +94,35 @@ fn default_host() -> String {
 }
 
 /// Configuracao de portas livres
-#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct PortsConfig {
     /// Lista de portas que devem estar livres
     #[serde(default)]
     pub free: Vec<u16>,
 }
 
+impl PortsConfig {
+    pub fn is_empty(&self) -> bool {
+        self.free.is_empty()
+    }
+}
+
 /// Configuracao de variaveis de ambiente
-#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct EnvConfig {
     /// Lista de variaveis que devem estar definidas
     #[serde(default)]
     pub required: Vec<String>,
 }
 
+impl EnvConfig {
+    pub fn is_empty(&self) -> bool {
+        self.required.is_empty()
+    }
+}
+
 /// Configuracao do arquivo .env
-#[derive(Debug, Clone, serde::Deserialize, Default)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct EnvFileConfig {
     /// Caminho do arquivo .env (padrao: .env)
     #[serde(default = "default_env_path")]
@@ -119,6 +131,12 @@ pub struct EnvFileConfig {
     /// Lista de chaves que devem existir no .env
     #[serde(default, alias = "required_keys")]
     pub required: Vec<String>,
+}
+
+impl EnvFileConfig {
+    pub fn is_empty(&self) -> bool {
+        self.path.is_empty() && self.required.is_empty()
+    }
 }
 
 fn default_env_path() -> String {
@@ -270,8 +288,10 @@ pub fn build_checks(config: &CheckupConfig, _project_path: &Path) -> Vec<Arc<dyn
         checks.push(Arc::new(EnvVarCheck::new("Environment", &config.env)));
     }
 
-    // Check de arquivo .env
-    checks.push(Arc::new(EnvFileCheck::new(&config.envfile)));
+    // Check de arquivo .env — apenas se configurado (path definido ou chaves requeridas)
+    if !config.envfile.path.is_empty() || !config.envfile.required.is_empty() {
+        checks.push(Arc::new(EnvFileCheck::new(&config.envfile)));
+    }
 
     checks
 }

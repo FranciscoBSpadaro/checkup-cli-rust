@@ -1,6 +1,6 @@
 [package]
 name = "checkup"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["FBS-DEV <fbs-dev-pro@proton.me>"]
 description = "Environment diagnostics and auto-fix for development machines"
@@ -20,12 +20,13 @@ clap_complete = "4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
-colored = "2"
 thiserror = "1"
 anyhow = "1"
 which = "7"
 async-trait = "0.1"
 futures = "0.3"
+chrono = "0.4"
+regex = "1"
 
 [dev-dependencies]
 tempfile = "3"

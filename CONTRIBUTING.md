@@ -175,13 +175,12 @@ All stages must pass before a PR can be merged.
 
 Releases are managed via GitHub. To publish a new version:
 
-1. Update `Cargo.toml` version.
-2. Update `README.md` and `README-PT.md` version references.
-3. Create a signed git tag:
-   ```bash
-   cargo tag  # bumps version in Cargo.toml + creates git tag + push
-   ```
-4. The GitHub Actions release workflow will publish to crates.io.
+1. Update `Cargo.toml` version (e.g., `0.1.2`).
+2. Run full verification: `make verify`.
+3. Commit the bump: `git commit -am "chore: release vX.Y.Z"`.
+4. Create a signed git tag: `git tag -s vX.Y.Z -m "Release vX.Y.Z"`.
+5. Push: `git push && git push --tags`.
+6. The GitHub Actions CI/CD workflow will build, test, and create a GitHub release.
 
 ---
 

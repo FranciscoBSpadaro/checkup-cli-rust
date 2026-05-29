@@ -29,7 +29,7 @@ $ checkup
 │  ✗ .env             missing: DATABASE_URL, JWT_SECRET│
 │                                                      │
 │  Summary: 3 issues found, 2 passed                   │
-│  Run 'checkup --fix' to auto-resolve what's possible │
+│  Run 'checkup fix' to auto-resolve what's possible   │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -150,7 +150,7 @@ checkup
 **Step 4:** Auto-fix what's possible:
 
 ```bash
-checkup --fix
+checkup fix
 ```
 
 ---
@@ -196,14 +196,15 @@ required = ["DATABASE_URL", "JWT_SECRET"]
 
 ```
 checkup                    Run all checks (default)
-checkup init               Create a default checkup.toml
+checkup init               Create checkup.toml with auto-detected tools
 checkup check              Run all checks
-checkup check --fix        Show fix suggestions for failures
+checkup fix                Auto-fix failures
+checkup list               List configured checks
+checkup completions        Generate shell completions
 
 Options:
   -c, --config <FILE>      Path to config file [default: checkup.toml]
-  -f, --fix                Show fix suggestions
-  -j, --json               Output results as JSON
+      --json               Output results as JSON
   -q, --quiet              Only show failures
   -h, --help               Print help
   -V, --version            Print version
@@ -230,10 +231,10 @@ Checks run **in parallel** using async I/O — typically completing in under 1 s
 
 ## Auto-Fix
 
-The `--fix` flag attempts to automatically resolve issues:
+The `fix` subcommand attempts to automatically resolve issues:
 
 ```bash
-$ checkup --fix
+$ checkup fix
 ```
 
 ```
@@ -260,9 +261,9 @@ When auto-fix isn't possible, the tool provides the exact command to run.
 - ✅ `checkup.toml` config parser (serde)
 - ✅ Auto-fix suggestions
 - ✅ JSON output mode (`--json`)
-- ✅ CLI with clap (`init`, `check`, `--fix`, `--quiet`)
+- ✅ CLI with clap (`init`, `check`, `fix`, `list`, `completions`)
 - ✅ Shell completions (bash, zsh, fish, powershell, elvish)
-- ✅ 18 unit tests passing
+- ✅ 38 tests passing (19 unit + 10 integration)
 - 🚧 Windows support
 
 ---
@@ -278,7 +279,7 @@ This project uses **GitHub Actions** for continuous integration and delivery. Ev
 | **Check**   | `cargo check` — fast compilation verification   |
 | **Format**  | `cargo fmt` — ensures consistent code style     |
 | **Lint**    | `cargo clippy` — catches common mistakes        |
-| **Test**    | `cargo test` — runs all unit tests (18 passing) |
+| **Test**    | `cargo test` — runs all tests (38 passing)      |
 | **Build**   | `cargo build --release` — production artifact   |
 
 ### Supported Platforms (CI)

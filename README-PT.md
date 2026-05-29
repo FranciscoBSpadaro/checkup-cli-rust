@@ -29,7 +29,7 @@ $ checkup
 │  ✗ .env             faltando: DATABASE_URL, JWT_SECRET│
 │                                                      │
 │  Resumo: 3 problemas encontrados, 2 passaram         │
-│  Execute 'checkup --fix' para auto-corrigir          │
+│  Execute 'checkup fix' para auto-corrigir            │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -150,7 +150,7 @@ checkup
 **Passo 4:** Auto-corrigia o que for possível:
 
 ```bash
-checkup --fix
+checkup fix
 ```
 
 ---
@@ -195,14 +195,17 @@ required = ["DATABASE_URL", "JWT_SECRET"]
 ### Opções de Linha de Comando
 
 ```
-checkup [OPTIONS]
+checkup                    Executa todos os checks (padrão)
+checkup init               Cria checkup.toml com ferramentas detectadas
+checkup check              Executa todos os checks
+checkup fix                Auto-corrige falhas
+checkup list               Lista checks configurados
+checkup completions        Gera shell completions
 
 Opções:
   -c, --config <FILE>   Caminho para arquivo de config [padrão: checkup.toml]
-  -f, --fix             Tenta auto-corrigir problemas
-  -j, --json            Output em formato JSON
+      --json            Output em formato JSON
   -q, --quiet           Mostra apenas falhas
-      --init            Cria checkup.toml padrão
   -h, --help            Mostra ajuda
   -V, --version         Mostra versão
 ```
@@ -228,10 +231,10 @@ Checks rodam **em paralelo** usando I/O async — tipicamente completando em men
 
 ## Auto-Fix
 
-A flag `--fix` tenta resolver problemas automaticamente:
+O subcomando `fix` tenta resolver problemas automaticamente:
 
 ```bash
-$ checkup --fix
+$ checkup fix
 ```
 
 ```
@@ -258,9 +261,9 @@ Quando auto-fix não é possível, a ferramenta fornece o comando exato para rod
 - ✅ Parser de config `checkup.toml` (serde)
 - ✅ Sugestões de auto-fix
 - ✅ Modo output JSON (`--json`)
-- ✅ CLI com clap (`init`, `check`, `--fix`, `--quiet`)
+- ✅ CLI com clap (`init`, `check`, `fix`, `list`, `completions`)
 - ✅ Shell completions (bash, zsh, fish, powershell, elvish)
-- ✅ 18 testes unitários passando
+- ✅ 38 testes passando (19 unitários + 10 integração)
 - 🚧 Suporte a Windows
 
 ---
@@ -276,7 +279,7 @@ Este projeto usa **GitHub Actions** para integração e entrega contínua. Toda 
 | **Check**  | `cargo check` — verificação rápida de compilação               |
 | **Format** | `cargo fmt` — garante estilo consistente de código             |
 | **Lint**   | `cargo clippy` — captura erros comuns                          |
-| **Test**   | `cargo test` — executa todos os testes unitários (18 passando) |
+| **Test**   | `cargo test` — executa todos os testes (38 passando)           |
 | **Build**  | `cargo build --release` — artefato de produção                 |
 
 ### Plataformas Suportadas (CI)
