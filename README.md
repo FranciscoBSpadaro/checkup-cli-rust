@@ -4,7 +4,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml/badge.svg)](https://github.com/FranciscoBSpadaro/checkup/actions/workflows/ci.yml)
+[![CI](https://github.com/FranciscoBSpadaro/checkup-cli-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/FranciscoBSpadaro/checkup-cli-rust/actions/workflows/ci.yml)
 
 Stop wasting hours debugging your dev machine. One command tells you **exactly**
 what's wrong — and how to fix it.
@@ -87,12 +87,12 @@ cargo install --path .
 
 **Linux / macOS:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/master/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/master/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
 ```
 
 ### Platform Support
