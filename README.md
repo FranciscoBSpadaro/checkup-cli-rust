@@ -85,14 +85,8 @@ cargo install --path .
 
 ### Quick install script
 
-**Linux / macOS:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/master/scripts/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/master/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
 ```
 
 ### Platform Support
@@ -101,7 +95,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/chec
 | -------- | ------------ |
 | Linux    | ✅ Supported |
 | macOS    | ✅ Supported |
-| Windows  | 🚧 Planned   |
 
 ---
 
@@ -264,7 +257,11 @@ When auto-fix isn't possible, the tool provides the exact command to run.
 - ✅ CLI with clap (`init`, `check`, `fix`, `list`, `completions`)
 - ✅ Shell completions (bash, zsh, fish, powershell, elvish)
 - ✅ 38 tests passing (19 unit + 10 integration)
-- 🚧 Windows support
+- 🚧 Windows support (pending):
+    - Replace `sh -c` calls with `cfg(unix)` / `cfg(windows)` conditional compilation in `port.rs`, `command.rs`, `version.rs`
+    - Replace `lsof` / `ss` in `port.rs::find_process_on_port()` with `netstat -ano` on Windows
+    - Add Windows CI job running `cargo test` (currently only `build-windows` runs, without tests)
+    - Add Windows install docs and re-enable `scripts/install.ps1` when ready
 
 ---
 
@@ -288,9 +285,8 @@ This project uses **GitHub Actions** for continuous integration and delivery. Ev
 | -------- | ------------ |
 | Linux    | ✅ Tested    |
 | macOS    | ✅ Tested    |
-| Windows  | ✅ Tested    |
 
-The CI pipeline runs on **all three platforms** on every push, ensuring cross-platform compatibility. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for details.
+The CI pipeline runs on **Linux and macOS** on every push. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for details.
 
 ---
 

@@ -85,14 +85,8 @@ cargo install --path .
 
 ### Script de instalação rápida
 
-**Linux / macOS:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.sh | bash
-```
-
-**Windows (PowerShell):**
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/main/scripts/install.ps1" -OutFile install.ps1; .\install.ps1
 ```
 
 ### Suporte por Plataforma
@@ -101,7 +95,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FranciscoBSpadaro/chec
 | ---------- | ------------ |
 | Linux      | ✅ Suportado |
 | macOS      | ✅ Suportado |
-| Windows    | 🚧 Planejado |
 
 ---
 
@@ -264,7 +257,11 @@ Quando auto-fix não é possível, a ferramenta fornece o comando exato para rod
 - ✅ CLI com clap (`init`, `check`, `fix`, `list`, `completions`)
 - ✅ Shell completions (bash, zsh, fish, powershell, elvish)
 - ✅ 38 testes passando (19 unitários + 10 integração)
-- 🚧 Suporte a Windows
+- 🚧 Suporte a Windows (pendente):
+    - Substituir chamadas `sh -c` por compilação condicional `cfg(unix)` / `cfg(windows)` em `port.rs`, `command.rs`, `version.rs`
+    - Substituir `lsof` / `ss` em `port.rs::find_process_on_port()` por `netstat -ano` no Windows
+    - Adicionar job Windows no CI rodando `cargo test` (atualmente só executa `build-windows`, sem testes)
+    - Adicionar docs de instalação Windows e reabilitar `scripts/install.ps1` quando pronto
 
 ---
 
@@ -288,9 +285,8 @@ Este projeto usa **GitHub Actions** para integração e entrega contínua. Toda 
 | ---------- | ---------- |
 | Linux      | ✅ Testado |
 | macOS      | ✅ Testado |
-| Windows    | ✅ Testado |
 
-O pipeline de CI roda em **todas as três plataformas** em cada push, garantindo compatibilidade multi-plataforma. Veja [`.github/workflows/ci.yml`](.github/workflows/ci.yml) para detalhes.
+O pipeline de CI roda em **Linux e macOS** em cada push. Veja [`.github/workflows/ci.yml`](.github/workflows/ci.yml) para detalhes.
 
 ---
 
