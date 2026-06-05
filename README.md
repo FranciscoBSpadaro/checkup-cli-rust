@@ -89,12 +89,31 @@ cargo install --path .
 curl -fsSL https://raw.githubusercontent.com/FranciscoBSpadaro/checkup-cli-rust/master/scripts/install.sh | bash
 ```
 
+### Windows install script
+
+```powershell
+# Allow script execution (if not already set)
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
+# Run the installer
+.\scripts\install.ps1
+```
+
+Or install from source (requires [Rust](https://rustup.rs/) and [Git](https://git-scm.com/download/win)):
+
+```powershell
+git clone https://github.com/FranciscoBSpadaro/checkup-cli-rust
+cd checkup
+cargo install --path .
+```
+
 ### Platform Support
 
 | Platform | Status       |
 | -------- | ------------ |
 | Linux    | ✅ Supported |
 | macOS    | ✅ Supported |
+| Windows  | ✅ Supported |
 
 ---
 
@@ -257,11 +276,12 @@ When auto-fix isn't possible, the tool provides the exact command to run.
 - ✅ CLI with clap (`init`, `check`, `fix`, `list`, `completions`)
 - ✅ Shell completions (bash, zsh, fish, powershell, elvish)
 - ✅ 38 tests passing (19 unit + 10 integration)
-- 🚧 Windows support (pending):
-    - Replace `sh -c` calls with `cfg(unix)` / `cfg(windows)` conditional compilation in `port.rs`, `command.rs`, `version.rs`
-    - Replace `lsof` / `ss` in `port.rs::find_process_on_port()` with `netstat -ano` on Windows
-    - Add Windows CI job running `cargo test` (currently only `build-windows` runs, without tests)
-    - Add Windows install docs and re-enable `scripts/install.ps1` when ready
+- ✅ Windows support:
+    - `cfg(unix)` / `cfg(windows)` conditional compilation in `port.rs`, `command.rs`, `version.rs`
+    - `netstat -ano` on Windows in `port.rs::find_process_on_port()` (replaces `lsof`/`ss`)
+    - `taskkill` on Windows in `port.rs::fix()` (replaces `kill`)
+    - Windows CI job running `cargo test`
+    - `scripts/install.ps1` and Windows installation docs
 
 ---
 

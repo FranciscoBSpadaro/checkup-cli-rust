@@ -1,8 +1,20 @@
 // Check de versao: verifica versao de um programa (semver)
 // Parseia output de --version e compara com versao esperada
+// O fix() usa `sh -c` no Unix e `cmd /C` no Windows para executar gerenciadores de versao
 
 use super::{Check, CheckResult, Context};
 use crate::config::VersionConfig;
+
+/// Run a shell command via `sh -c` (Unix) or `cmd /C` (Windows).
+async fn run_shell_cmd(cmd: &str) -> Option<std::process::ExitStatus> {
+    let mut c = tokio::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" });
+    if cfg!(windows) {
+        c.arg("/C");
+    } else {
+        c.arg("-c");
+    }
+    c.arg(cmd).status().await.ok()
+}
 
 /// Check que verifica a versao de uma ferramenta
 pub struct VersionCheck {
@@ -104,18 +116,13 @@ impl Check for VersionCheck {
                 .expected
                 .trim_start_matches(|c: char| !c.is_ascii_digit());
             if !version.is_empty() {
-                let use_cmd = format!("{} use {}", manager, version);
-                let status = tokio::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(&use_cmd)
-                    .status()
-                    .await
-                    .ok()?;
+                let use_cmd = format!("{manager} use {version}");
+                let status = run_shell_cmd(&use_cmd).await?;
 
                 if status.success() {
                     return Some(CheckResult::pass(
                         &self.name,
-                        &format!("switched to version {} via {}", version, manager),
+                        &format!("switched to version {version} via {manager}"),
                     ));
                 }
             }
@@ -123,17 +130,12 @@ impl Check for VersionCheck {
 
         // Fallback: usa a sugestao de fix do config
         if let Some(suggestion) = &self.fix_suggestion {
-            let status = tokio::process::Command::new("sh")
-                .arg("-c")
-                .arg(suggestion)
-                .status()
-                .await
-                .ok()?;
+            let status = run_shell_cmd(suggestion).await?;
 
             if status.success() {
                 return Some(CheckResult::pass(
                     &self.name,
-                    &format!("auto-fixed: ran '{}'", suggestion),
+                    &format!("auto-fixed: ran '{suggestion}'"),
                 ));
             }
         }

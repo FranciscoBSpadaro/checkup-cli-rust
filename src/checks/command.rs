@@ -1,5 +1,6 @@
 // Check de comando: verifica se um comando existe no PATH
 // Utiliza `which` crate para busca cross-platform (funciona em Linux, Mac e Windows)
+// O fix() usa `sh -c` no Unix e `cmd /C` no Windows para executar sugestoes de instalacao
 
 use super::{Check, CheckResult, Context};
 
@@ -57,12 +58,13 @@ impl Check for CommandCheck {
         // Se existe sugestao de fix, tenta executar como comando shell
         let suggestion = self.fix_suggestion.as_ref()?;
 
-        let status = tokio::process::Command::new("sh")
-            .arg("-c")
-            .arg(suggestion)
-            .status()
-            .await
-            .ok()?;
+        let mut cmd = tokio::process::Command::new(if cfg!(windows) { "cmd" } else { "sh" });
+        if cfg!(windows) {
+            cmd.arg("/C");
+        } else {
+            cmd.arg("-c");
+        }
+        let status = cmd.arg(suggestion).status().await.ok()?;
 
         if status.success() {
             Some(CheckResult::pass(
