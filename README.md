@@ -81,6 +81,9 @@ right next to it.
 git clone https://github.com/FranciscoBSpadaro/checkup-cli-rust
 cd checkup
 cargo install --path .
+- easy way
+cd checkup/scripts
+./install.sh
 ```
 
 ### Quick install script
